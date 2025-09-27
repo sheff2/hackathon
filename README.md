@@ -12,3 +12,11 @@ Use plugins to gate tool I/O and panic phrases (e.g., long-press SOS) before sen
 
 python/agents/RAG → local open-data (sidewalks/ramps/lights)
 crime data etc
+
+folder structure:
+parent_folder/
+    multi_tool_agent/
+        __init__.py
+        agent.py
+        .env
+
