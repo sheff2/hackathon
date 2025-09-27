@@ -424,5 +424,5 @@ crime_agent = Agent(
 
 
 if __name__ == "__main__":
-    preview = get_crime_locations(limit=5)
+    preview = get_crime_locations(limit=50)
     print(json.dumps(preview, indent=2))
