@@ -18,11 +18,8 @@ import math
 from typing import List, Tuple, Dict, Any
 import httpx
 
-try:
-    # Optional: only needed if you want to use this as an ADK tool
-    from google.adk.agents import Agent
-except Exception:
-    Agent = None  # still works standalone
+from google.adk.agents import Agent
+
 
 
 # ---- Config -----------------------------------------------------------------
@@ -173,18 +170,7 @@ def get_routes(origin: str, destination: str, count: int = 10) -> Dict[str, Any]
         return {"status": "error", "error_message": str(e)}
 
 
-# ---- Optional: ADK agent wrapper --------------------------------------------
 
-def make_agent():
-    if Agent is None:
-        return None
-    return Agent(
-        name="routing_agent",
-        model="gemini-2.0-flash",
-        description="Fetch up to 10 walking routes from A to B using Google Maps, and provide a Google Maps link for each.",
-        instruction="Call get_routes with an origin and destination.",
-        tools=[get_routes],
-    )
 
 
 # ---- CLI / demo --------------------------------------------------------------
@@ -194,26 +180,12 @@ def _pretty_distance(m: int) -> str:
         return f"{m/1000:.1f} km"
     return f"{m} m"
 
-def main():
-    # Demo query
-    origin = os.getenv("DEMO_ORIGIN", "New York, NY")
-    dest = os.getenv("DEMO_DEST", "Brooklyn, NY")
-    count = int(os.getenv("DEMO_COUNT", "5"))
 
-    result = get_routes(origin, dest, count=count)
-    print(json.dumps(result, indent=2))
+root_agent = Agent(
+        name="routing_agent",
+        model="gemini-2.0-flash",
+        description="Fetch up to 10 walking routes from A to B using Google Maps, and provide a Google Maps link for each.",
+        instruction="Call get_routes with an origin and destination.",
+        tools=[get_routes],
+)
 
-    # Nice console summary
-    if result.get("status") == "success":
-        print("\nTop routes:")
-        for r in result.get("routes", []):
-            mins = math.ceil(r["duration_sec"] / 60) if r["duration_sec"] else 0
-            print(
-                f"- {r['id']}: ~{mins} min, {_pretty_distance(r['distance_m'])}\n  Open in Google Maps: {r.get('maps_link')}"
-            )
-
-if __name__ == "__main__":
-    main()
-    # If you need the ADK agent, uncomment the lines below to instantiate it:
-    # agent = make_agent()
-    # print("ADK agent ready:", bool(agent))
