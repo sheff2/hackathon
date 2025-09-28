@@ -1,0 +1,4 @@
+google-adk-agents
+httpx[h2]
+python-dotenv
+googlemaps
