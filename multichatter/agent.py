@@ -1,28 +1,39 @@
 # agent.py
+import sys
+import os
+from pathlib import Path
+
+# Add the parent directory to Python path
+current_dir = Path(__file__).parent.absolute()
+parent_dir = current_dir.parent
+if str(parent_dir) not in sys.path:
+    sys.path.insert(0, str(parent_dir))
+
 from google.adk.agents import Agent, SequentialAgent
 
-# Tools from agents
+# Now this will always work
 from multichatter.utils.agent1_utils import plan_routes
 from multichatter.utils.agent2_utils import (
     rank_supplied_routes,
+    parse_and_rank_routes,
     get_route_details,
-    get_crime_locations,   # optional
-    get_ranked_routes,     # optional
+    debug_agent_context,
+    get_crime_locations,
+    get_ranked_routes,
 )
 
-# -------- Agent 1: finds routes and returns machine-readable JSON only --------
-# agent.py (router agent only)
+# -------- Agent 1: Routing Agent (Bulletproof) --------
 router_agent = Agent(
     name="routing_agent",
     model="gemini-2.0-flash",
-    description="Finds up to 10 distinct walking routes (machine output only).",
+    description="Generates exactly 10 distinct walking routes using Google Routes API.",
     instruction=(
-        "First, call plan_routes(origin, destination, count=10, output='json'). "
-        "After the tool returns, do NOT paste the JSON. "
-        "Reply to the USER with exactly: 'Got it — generating routes and passing them to safety scoring now.' "
-        "The tool result will be available to the next agent in context."
+        "You must call plan_routes(origin, destination, count=10, output='json') with the user's origin and destination. "
+        "After calling the function, examine the result. "
+        "If status is 'success', reply EXACTLY: 'Route generation complete. Found [X] routes. Passing to safety analysis.' "
+        "If status is 'error', reply EXACTLY: 'Route generation failed: [error_message]. Please try different locations.' "
+        "Do NOT display the JSON data. Do NOT explain the routes. The next agent will handle analysis."
     ),
-
     tools=[plan_routes],
 )
 
@@ -32,26 +43,29 @@ router_agent = Agent(
 crime_agent = Agent(
     name="crime_route_agent",
     model="gemini-2.0-flash",
-    description="Scores walking routes using local incident data and summarizes clearly.",
+    description="Analyzes routes for safety using crime data.",
     instruction=(
-        "Find the most recent function/tool response from routing_agent with keys "
-        "['status','origin','destination','routes']. "
-        "If missing or status!='success', apologize briefly and ask the user to rephrase origin/destination. "
-        "Otherwise, call rank_supplied_routes(routes=<that['routes']>, origin=<that['origin']>, destination=<that['destination']>). "
-        "Then talk to the USER like a normal person: start with 'I generated N routes and ranked their safety.' "
-        "Show the TOP 3 with: rank, duration (min), distance (km), risk_summary, and maps_link. "
-        "Do NOT display any encoded polylines. "
-        "If asked about a route_id, call get_route_details(route_id) and explain key risk factors (still no polyline)."
+        "You have received routing data from the previous agent. "
+        "Call parse_and_rank_routes() with the routing context. "
+        "Do not use print(). Do not use any API prefix. "
+        "Do not make classifications - rank the data you were given."
     ),
-    tools=[rank_supplied_routes, get_route_details],
+    tools=[parse_and_rank_routes, get_route_details],
 )
-
 # -------- Pipeline: run Router first, then Crime ranker --------
 code_pipeline_agent = SequentialAgent(
-    name="CodePipelineAgent",
+    name="SafeRouteAgent",
     sub_agents=[router_agent, crime_agent],
-    description="1) Get routes as JSON (machine output). 2) Rank those routes and produce a user-facing safety summary.",
+    description=(
+        "Two-step process: 1) routing_agent generates routes as JSON, "
+        "2) crime_route_agent analyzes those routes for safety. "
+        "The routing_agent's output must be passed as context to crime_route_agent. "
+        "Always run both agents in sequence - never respond as 'root agent'."
+    ),
 )
 
-# ADK expects the root agent to be named `root_agent`
-root_agent = code_pipeline_agent
+
+
+root_agent = code_pipeline_agent  # Use this instead of SequentialAgent
+
+
