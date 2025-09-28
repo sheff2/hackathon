@@ -37,7 +37,7 @@ crime_agent = Agent(
         "Otherwise, call rank_supplied_routes with EXACT JSON using those values:\n"
         '{\"routes\": RESPONSE.routes, \"origin\": RESPONSE.origin, \"destination\": RESPONSE.destination}\n'
         "After the tool returns, speak to the USER. Start with: "
-        "'Yippie — I generated N routes and ranked their safety.' (replace N). "
+        "'Here you go — I generated N routes and ranked their safety.' (replace N). "
         "Then show the TOP 3 with: rank, duration (min), distance (km), risk_summary, maps_link. "
         "Be concise and never paste raw polylines.\n"
         "If the USER asks about a specific route_id, call get_route_details with "

@@ -184,16 +184,40 @@ def _distance_decay(distance_m: float) -> float:
 def estimate_lighting(samples: Sequence[Tuple[float, float]]) -> Dict[str, object]:
     return {"score": None, "sampled_points": len(samples), "notes": "Lighting analysis pending Street View integration.", "multiplier": 1.0}
 
+def _fmt_date(iso_z: str) -> str:
+    """Format '2024-03-15T14:30:00Z' → 'Mar 15, 2024'."""
+    try:
+        s = iso_z.replace("Z", "+00:00")
+        dt = datetime.fromisoformat(s)
+        return dt.strftime("%b %d, %Y")
+    except Exception:
+        return iso_z  # fallback if something is odd
+
 def _summarize_route_risk(incidents: Iterable[Dict[str, object]], lighting: Dict[str, object]) -> str:
     incidents_list = list(incidents)
-    if not incidents_list: return "No recent incidents detected within 120 meters of this route."
+    if not incidents_list:
+        return f"No recent incidents detected within about {int(INCIDENT_SEARCH_RADIUS_M)} meters of this route."
+
     incidents_list.sort(key=lambda item: item["score_contribution"], reverse=True)
-    top = incidents_list[:3]; parts = []
+    top = incidents_list[:3]
+    parts = []
     for item in top:
-        offense = item.get("offense", "incident"); distance_m = round(item.get("distance_m", 0))
-        parts.append(f"{offense} about {distance_m} meters away")
+        offense = item.get("offense", "incident")
+        distance_m = round(float(item.get("distance_m", 0)))
+        ts = str(item.get("timestamp", ""))  # ISO with 'Z'
+        date_str = _fmt_date(ts)
+        parts.append(f"{offense} on {date_str} (about {distance_m} m away)")
+
+    # If there are more than 3 incidents, note the remainder count.
+    remainder = len(incidents_list) - len(top)
     note = "; ".join(parts)
-    if lighting.get("score") is not None: note += f"; lighting score {lighting['score']}"
+    if remainder > 0:
+        note += f"; plus {remainder} other incident{'s' if remainder != 1 else ''} within {int(INCIDENT_SEARCH_RADIUS_M)} m"
+
+    if lighting.get("score") is not None:
+        note += f"; lighting score {lighting['score']}"
+    print("DEBUG risk_summary before return:", repr(note))
+
     return note
 
 # --------- Scoring with hashable keys only ---------
