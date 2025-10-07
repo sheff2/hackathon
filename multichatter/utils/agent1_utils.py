@@ -19,7 +19,7 @@ except Exception:
     httpx = None  # type: ignore
     HTTP2_OK = False
 
-MAPS_KEY = "AIzaSyCkB45eQTx6VTU98khj9YcPSJAazXJmuqE"
+MAPS_KEY = os.getenv("MAPS_KEY")
 
 # Env caps to control fan-out / cost
 MAX_ATTEMPTS_ENV = int(os.getenv("PLAN_ROUTES_MAX_ATTEMPTS", "120"))
